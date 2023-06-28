@@ -80,22 +80,23 @@ function RLBase.state(env::SnakeGameEnv)
 
     game = env.game
     snake = game.snakes[]
-    food = game.foods[]
+    snake_head = snake[1]
+    food = first(game.foods)
     walls = game.walls
 
-    snake_left = snake[1] + CartesianIndex(-1, 0)
-    snake_right = snake[1] + CartesianIndex(1, 0)
-    snake_up = snake[1] + CartesianIndex(0, -1)
-    snake_down = snake[1] + CartesianIndex(0, 1)
+    snake_left = snake_head + CartesianIndex(-1, 0)
+    snake_right = snake_head + CartesianIndex(1, 0)
+    snake_up = snake_head + CartesianIndex(0, -1)
+    snake_down = snake_head + CartesianIndex(0, 1)
 
     prev_action = env.latest_actions[]
 
     return [
         # Snake's position relative to the food
-        food[1] < snake[1], # Food is to the left of the snake
-        food[1] > snake[1], # Food is to the right of the snake
-        food[2] < snake[2], # Food is above the snake
-        food[2] > snake[2], # Food is below the snake
+        food[1] < snake_head[1], # Food is to the left of the snake
+        food[1] > snake_head[1], # Food is to the right of the snake
+        food[2] < snake_head[2], # Food is above the snake
+        food[2] > snake_head[2], # Food is below the snake
 
         # Snake's position relative to danger
         snake_left ∈ snake || snake_left ∈ walls, # Obstacle directly to the left of the snake
@@ -119,11 +120,12 @@ function RLBase.reward(env::SnakeGameEnv)
 
     game = env.game
     snake = game.snakes[]
-    food = game.foods[]
+    snake_head = snake[1]
+    food = first(game.foods)
     walls = game.walls
 
     prev_action = env.latest_actions[]
-    prev_pos = CartesianIndex(mod.((snake[1] - prev_action).I, axes(game.board)[1:end-1]))
+    prev_pos = CartesianIndex(mod.((snake_head - prev_action).I, axes(game.board)[1:end-1]))
 
     dist = (p1, p2) -> hypot(p2[1] - p1[1], p2[2] - p1[2])
 
@@ -132,9 +134,9 @@ function RLBase.reward(env::SnakeGameEnv)
         reward = 10
     elseif env.is_terminated
         reward = -100
-    elseif dist(snake[1], food) < dist(prev_pos, food)
+    elseif dist(snake_head, food) < dist(prev_pos, food)
         reward = 1
-    elseif dist(snake[1], food) > dist(prev_pos, food)
+    elseif dist(snake_head, food) > dist(prev_pos, food)
         reward = -1
     else
         reward = 0
