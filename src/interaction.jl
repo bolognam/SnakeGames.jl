@@ -68,7 +68,7 @@ function play(game::SnakeGame{2};f_name="test.mp4",framerate = 2)
     actions = [rand([LEFT,RIGHT,UP,DOWN]) for _ in game.snakes]
     is_exit = Ref{Bool}(false)
 
-    on(scene, events(scene).keyboardbutton) do but
+    on(events(scene).keyboardbutton) do but
         @show but
         if ispressed(scene, Keyboard.left)
             actions[1] != -LEFT && (actions[1] = LEFT)
