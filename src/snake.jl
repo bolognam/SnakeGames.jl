@@ -68,12 +68,81 @@ end
 
 
 RLBase.action_space(env::SnakeGameEnv) = Base.OneTo(4)
-RLBase.state(env::SnakeGameEnv) = env.game.board
-RLBase.state_space(env::SnakeGameEnv) = ArrayProductDomain(fill(false:true, size(env.game.board)))
-RLBase.reward(env::SnakeGameEnv{<:Any,SINGLE_AGENT}) =
-    length(env.game.snakes[]) - env.latest_snakes_length[]
-RLBase.reward(env::SnakeGameEnv) = length.(env.game.snakes) .- env.latest_snakes_length
+#RLBase.state(env::SnakeGameEnv) = env.game.board
+#RLBase.state_space(env::SnakeGameEnv) = ArrayProductDomain(fill(false:true, size(env.game.board)))
+#RLBase.reward(env::SnakeGameEnv{<:Any,SINGLE_AGENT}) =
+#    length(env.game.snakes[]) - env.latest_snakes_length[]
+#RLBase.reward(env::SnakeGameEnv) = length.(env.game.snakes) .- env.latest_snakes_length
 RLBase.is_terminated(env::SnakeGameEnv) = env.is_terminated
+
+# This only works with a single snake and one food at a time
+function RLBase.state(env::SnakeGameEnv)
+
+    game = env.game
+    snake = game.snakes[]
+    food = game.foods[]
+    walls = game.walls
+
+    snake_left = snake[1] + CartesianIndex(-1, 0)
+    snake_right = snake[1] + CartesianIndex(1, 0)
+    snake_up = snake[1] + CartesianIndex(0, -1)
+    snake_down = snake[1] + CartesianIndex(0, 1)
+
+    prev_action = env.latest_actions[]
+
+    return [
+        # Snake's position relative to the food
+        food[1] < snake[1], # Food is to the left of the snake
+        food[1] > snake[1], # Food is to the right of the snake
+        food[2] < snake[2], # Food is above the snake
+        food[2] > snake[2], # Food is below the snake
+
+        # Snake's position relative to danger
+        snake_left ∈ snake || snake_left ∈ walls, # Obstacle directly to the left of the snake
+        snake_right ∈ snake || snake_right ∈ walls, # Obstacle directly to the right of the snake
+        snake_up ∈ snake || snake_up ∈ walls, # Obstacle directly above the snake
+        snake_down ∈ snake || snake_down ∈ walls, # Obstacle directly below the snake
+
+        # Snake's direction
+        prev_action[1] < 0, # Snake going left
+        prev_action[1] > 0, # Snake going right
+        prev_action[2] < 0, # Snake going up
+        prev_action[2] > 0, # Snake going down
+    ]
+
+end
+
+RLBase.state_space(env::SnakeGameEnv) = ArrayProductDomain(fill(false:true, size(RLBase.state(env))))
+
+# This only works with a single snake and one food at a time
+function RLBase.reward(env::SnakeGameEnv)
+
+    game = env.game
+    snake = game.snakes[]
+    food = game.foods[]
+    walls = game.walls
+
+    prev_action = env.latest_actions[]
+    prev_pos = CartesianIndex(mod.((snake[1] - prev_action).I, axes(game.board)[1:end-1]))
+
+    dist = (p1, p2) -> hypot(p2[1] - p1[1], p2[2] - p1[2])
+
+    # First check if food was consumed
+    if length(snake) > env.latest_snakes_length[]
+        reward = 10
+    elseif env.is_terminated
+        reward = -100
+    elseif dist(snake[1], food) < dist(prev_pos, food)
+        reward = 1
+    elseif dist(snake[1], food) > dist(prev_pos, food)
+        reward = -1
+    else
+        reward = 0
+    end
+
+    return reward
+
+end
 
 RLBase.legal_action_space(env::SnakeGameEnv{FULL_ACTION_SET,SINGLE_AGENT}) =
     findall(!=(-env.latest_actions[]), SNAKE_GAME_ACTIONS)
