@@ -1,4 +1,4 @@
-function play(agent::Agent, env; f_name = "test.mp4", framerate = 2)
+function play(agent::Agent, env; f_name = "agent_game.mp4", framerate = 10)
 
     (scene, game_node) = scene_and_node(env.game)
 
